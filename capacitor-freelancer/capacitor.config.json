@@ -1,0 +1,15 @@
+{
+  "appId": "com.agenciarodrigues.freelancer",
+  "appName": "Agência Rodrigues Freelancer",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0b0b0c"
+    }
+  }
+}

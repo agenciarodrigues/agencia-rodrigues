@@ -1,0 +1,21 @@
+# Deploy gratuito no Render.com:
+# 1) Crie uma conta em https://render.com (grátis, sem cartão)
+# 2) "New +" -> "Blueprint" -> conecte este repositório/pasta (via GitHub)
+# 3) O Render lê este arquivo sozinho e cria o serviço com disco persistente
+# 4) Ao final, copie a URL gerada (ex: https://agencia-rodrigues-api.onrender.com)
+#    e cole em gestao/config.js e freelancer/config.js como API_BASE + "/api"
+services:
+  - type: web
+    name: agencia-rodrigues-api
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000
+    disk:
+      name: agencia-rodrigues-dados
+      mountPath: /app/data
+      sizeGB: 1

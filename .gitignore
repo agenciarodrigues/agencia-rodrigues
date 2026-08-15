@@ -1,0 +1,12 @@
+node_modules/
+backend/data/
+backend/uploads/*.jpg
+backend/uploads/*.png
+backend/uploads/*.jpeg
+backend/server.log
+backend/firebase-service-account.json
+capacitor-freelancer/android/app/build/
+capacitor-freelancer/android/build/
+capacitor-freelancer/android/.gradle/
+capacitor-freelancer/android/local.properties
+.DS_Store

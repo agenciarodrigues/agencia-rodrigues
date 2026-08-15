@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Agência Rodrigues Freelancer — Gestão</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===================== TELA DE LOGIN ===================== -->
+<div id="tela-login" class="tela-cheia">
+  <div class="login-card">
+    <img src="assets/logo.png" alt="Agência Rodrigues" class="login-logo">
+    <h1>Painel de Gestão</h1>
+    <p class="login-sub">Agência Rodrigues Freelancer</p>
+
+    <form id="form-login" class="form-stack">
+      <label>Email
+        <input type="email" id="login-email" required placeholder="seu@email.com">
+      </label>
+      <label>Senha
+        <input type="password" id="login-senha" required placeholder="••••••••">
+      </label>
+      <button type="submit" class="btn btn-ouro">Entrar</button>
+    </form>
+    <p class="login-alt">Ainda não tem acesso? <a href="#" id="link-mostrar-cadastro">Criar conta de gestor</a></p>
+
+    <form id="form-cadastro-gestor" class="form-stack escondido">
+      <label>Nome
+        <input type="text" id="cad-nome" required>
+      </label>
+      <label>Email
+        <input type="email" id="cad-email" required>
+      </label>
+      <label>Senha
+        <input type="password" id="cad-senha" required minlength="6">
+      </label>
+      <button type="submit" class="btn btn-ouro">Criar conta</button>
+      <p class="login-alt"><a href="#" id="link-mostrar-login">Voltar para login</a></p>
+    </form>
+    <div id="login-erro" class="msg-erro escondido"></div>
+  </div>
+</div>
+
+<!-- LOADING AO ENTRAR NA CONTA -->
+<div id="tela-carregando-conta" class="tela-cheia col centro escondido" style="display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px;">
+  <img src="assets/logo.png" style="width:80px; border-radius:12px;">
+  <div class="loader-ouro"></div>
+  <p style="color:var(--texto-suave); font-size:13px;">Entrando no painel…</p>
+</div>
+
+<!-- ===================== APP PRINCIPAL ===================== -->
+<div id="app" class="tela-cheia escondido">
+  <aside class="sidebar">
+    <div class="sidebar-topo">
+      <img src="assets/logo.png" alt="logo" class="sidebar-logo">
+      <div>
+        <strong>Agência Rodrigues</strong>
+        <span>Painel de Gestão</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item ativo" data-tela="dashboard">📊 Painel geral</button>
+      <button class="nav-item" data-tela="restaurantes">🏢 Restaurantes</button>
+      <button class="nav-item" data-tela="freelancers">🧑‍🍳 Freelancers</button>
+      <button class="nav-item" data-tela="escalas">🗓️ Escalas / Eventos</button>
+      <button class="nav-item" data-tela="avisos">📣 Avisos / Notificações</button>
+      <button class="nav-item" data-tela="mapa">📍 Mapa ao vivo</button>
+      <button class="nav-item" data-tela="relatorios">📄 Relatórios</button>
+    </nav>
+    <button id="btn-sair" class="btn-sair">Sair</button>
+  </aside>
+
+  <main class="conteudo">
+    <header class="topo-mobile">
+      <img src="assets/logo.png" class="topo-mobile-logo">
+      <strong>Agência Rodrigues</strong>
+      <button id="btn-menu-mobile">☰</button>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section id="tela-dashboard" class="tela">
+      <h2>Painel geral</h2>
+      <div class="cards-grid" id="cards-resumo"></div>
+      <div class="painel-box">
+        <h3>Próximos eventos</h3>
+        <div id="proximos-eventos"></div>
+      </div>
+    </section>
+
+    <!-- RESTAURANTES -->
+    <section id="tela-restaurantes" class="tela escondido">
+      <div class="tela-header">
+        <h2>Restaurantes contratantes</h2>
+        <button class="btn btn-ouro" id="btn-novo-restaurante">+ Novo restaurante</button>
+      </div>
+      <div class="tabela-wrap">
+        <table class="tabela">
+          <thead><tr><th>Empresa</th><th>CNPJ</th><th>Responsável</th><th>Telefone</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tabela-restaurantes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FREELANCERS -->
+    <section id="tela-freelancers" class="tela escondido">
+      <div class="tela-header">
+        <h2>Freelancers cadastrados</h2>
+        <div class="filtros-chip" id="filtro-freelancers">
+          <button class="chip ativo" data-status="">Todos</button>
+          <button class="chip" data-status="pendente">Pendentes</button>
+          <button class="chip" data-status="aprovado">Aprovados</button>
+          <button class="chip" data-status="bloqueado">Bloqueados</button>
+          <button class="chip" id="chip-favoritos" data-favoritos="1">⭐ Favoritos</button>
+        </div>
+      </div>
+      <select id="select-area-freelancer" class="input-select">
+        <option value="">Organizar por área — todas</option>
+      </select>
+      <div id="grupos-freelancers"></div>
+    </section>
+
+    <!-- ESCALAS / EVENTOS -->
+    <section id="tela-escalas" class="tela escondido">
+      <div class="tela-header">
+        <h2>Escalas / Eventos</h2>
+        <button class="btn btn-ouro" id="btn-novo-evento">+ Nova escala</button>
+      </div>
+      <div class="lista-eventos" id="lista-eventos"></div>
+    </section>
+
+    <!-- AVISOS / NOTIFICAÇÕES -->
+    <section id="tela-avisos" class="tela escondido">
+      <div class="tela-header">
+        <h2>Avisos / Notificações</h2>
+        <button class="btn btn-ouro" id="btn-novo-aviso">+ Enviar novo aviso</button>
+      </div>
+      <p class="texto-suave">Envie um aviso manual (nova escala, comunicado, lembrete) para uma ou mais áreas — ou para todos os freelancers aprovados de uma vez.</p>
+      <h3 class="painel-box-titulo" style="margin-top:22px; font-family:var(--fonte-display); font-size:19px;">Minhas mensagens favoritas</h3>
+      <div id="lista-mensagens-modelo" class="lista-eventos" style="margin-top:10px;"></div>
+    </section>
+
+    <!-- MAPA AO VIVO -->
+    <section id="tela-mapa" class="tela escondido">
+      <h2>Mapa ao vivo</h2>
+      <p class="texto-suave">Selecione um evento em andamento para ver a localização dos freelancers escalados.</p>
+      <select id="select-evento-mapa" class="input-select"></select>
+      <div id="lista-mapa" class="lista-mapa"></div>
+    </section>
+
+    <!-- RELATÓRIOS -->
+    <section id="tela-relatorios" class="tela escondido">
+      <h2>Relatórios por evento</h2>
+      <select id="select-evento-relatorio" class="input-select"></select>
+      <div id="relatorio-conteudo"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== MODAIS ===================== -->
+<div id="modal-fundo" class="modal-fundo escondido">
+  <div class="modal-caixa" id="modal-caixa"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="areas.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

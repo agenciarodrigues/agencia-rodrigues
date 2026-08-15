@@ -1,0 +1,61 @@
+name: Gerar APK do Freelancer
+
+# Roda sozinho toda vez que você enviar uma alteração para a pasta
+# capacitor-freelancer, ou quando você mandar rodar manualmente pelo
+# celular na aba "Actions" do GitHub (botão "Run workflow").
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'capacitor-freelancer/**'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: capacitor-freelancer
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configurar Java (necessário para compilar Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Sincronizar o app web com o projeto Android
+        run: npx cap sync android
+
+      - name: Dar permissão de execução ao gradlew
+        run: chmod +x android/gradlew
+
+      - name: Compilar o APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: Guardar o APK gerado (fica disponível na aba Actions > este run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: agencia-rodrigues-freelancer-apk
+          path: capacitor-freelancer/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar como Release (link fixo e permanente para o Drive/WhatsApp)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-mais-recente
+          name: Agência Rodrigues Freelancer — APK mais recente
+          body: Gerado automaticamente pelo GitHub Actions a cada atualização do app.
+          files: capacitor-freelancer/android/app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

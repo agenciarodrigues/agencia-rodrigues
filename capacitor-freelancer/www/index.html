@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Agência Rodrigues Freelancer</title>
+<link rel="icon" href="assets/logo.png">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- SPLASH / PEDIDO DE LOCALIZAÇÃO INICIAL -->
+<div id="tela-splash" class="tela-cheia col centro">
+  <img src="assets/logo.png" class="splash-logo">
+  <h1 class="splash-titulo">Agência Rodrigues</h1>
+  <p class="splash-sub">Freelancer</p>
+  <div class="splash-loader"></div>
+</div>
+
+<!-- LOGIN -->
+<div id="tela-login" class="tela-cheia col centro escondido">
+  <div class="cartao-auth">
+    <img src="assets/logo.png" class="auth-logo">
+    <h2>Entrar</h2>
+    <form id="form-login" class="form-stack">
+      <label>Email
+        <input type="email" id="login-email" required>
+      </label>
+      <label>Senha
+        <input type="password" id="login-senha" required>
+      </label>
+      <button class="btn btn-ouro" type="submit">Entrar</button>
+    </form>
+    <p class="auth-alt">Primeira vez por aqui? <a href="#" id="link-cadastro">Criar minha conta</a></p>
+    <div id="login-erro" class="msg-erro escondido"></div>
+  </div>
+</div>
+
+<!-- CADASTRO -->
+<div id="tela-cadastro" class="tela-cheia col centro escondido">
+  <div class="cartao-auth">
+    <img src="assets/logo.png" class="auth-logo">
+    <h2>Criar conta</h2>
+    <form id="form-cadastro" class="form-stack">
+      <label>Nome completo
+        <input type="text" id="cad-nome" required>
+      </label>
+      <label>CPF
+        <input type="text" id="cad-cpf" required placeholder="000.000.000-00">
+      </label>
+      <label>Email
+        <input type="email" id="cad-email" required>
+      </label>
+      <label>Telefone (WhatsApp)
+        <input type="tel" id="cad-telefone" placeholder="(00) 00000-0000">
+      </label>
+      <label>Função (selecione todas as áreas em que você atua)
+        <div id="cad-areas-lista" class="areas-checklist"></div>
+      </label>
+      <label>Senha
+        <input type="password" id="cad-senha" required minlength="6">
+      </label>
+      <button class="btn btn-ouro" type="submit">Criar conta</button>
+    </form>
+    <p class="auth-alt">Já tem conta? <a href="#" id="link-login">Entrar</a></p>
+    <div id="cadastro-erro" class="msg-erro escondido"></div>
+  </div>
+</div>
+
+<!-- TELA ANIMADA — AVISO DE KIT/UNIFORME OBRIGATÓRIO -->
+<div id="tela-aviso-kit" class="tela-cheia col centro escondido">
+  <div class="cartao-kit">
+    <div class="kit-icone">⚠️</div>
+    <h2>Antes de começar…</h2>
+    <p class="kit-sub">Para cada área que você marcou, é obrigatório já ter o seu próprio kit/uniforme pronto para o dia do evento:</p>
+    <div id="lista-kits" class="lista-kits"></div>
+    <label class="kit-confirmar">
+      <input type="checkbox" id="chk-confirmo-kit">
+      Li e confirmo que terei o kit/uniforme completo de cada área marcada
+    </label>
+    <button class="btn btn-ouro" id="btn-confirmar-kit" disabled style="width:100%">Entendi, continuar</button>
+  </div>
+</div>
+
+<!-- LOADING AO ENTRAR NA CONTA -->
+<div id="tela-carregando-conta" class="tela-cheia col centro escondido">
+  <img src="assets/logo.png" class="splash-logo-pequeno">
+  <div class="splash-loader"></div>
+  <p class="splash-sub" style="margin-top:10px">Entrando na sua conta…</p>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app" class="tela-cheia escondido">
+
+  <header class="topo-app">
+    <img src="assets/logo.png" class="topo-logo">
+    <div class="topo-textos">
+      <strong id="topo-nome">Olá!</strong>
+      <span id="topo-status" class="badge-status">pendente</span>
+    </div>
+    <button id="btn-sino" class="btn-sino">🔔<span id="bolinha-notif" class="bolinha escondido"></span></button>
+  </header>
+
+  <main class="conteudo-app">
+
+    <!-- AVISO DE PENDENTE -->
+    <div id="aviso-pendente" class="aviso escondido">
+      ⏳ Seu cadastro está em análise pela Agência Rodrigues. Assim que for aprovado, você poderá receber convites de escala.
+    </div>
+
+    <!-- ESCALA ATIVA (check-in/out) -->
+    <div id="bloco-ativo"></div>
+
+    <h3 class="secao-titulo">Meus convites de escala</h3>
+    <div id="lista-convites" class="lista-convites"></div>
+
+  </main>
+
+  <nav class="tab-bar">
+    <button class="tab-item ativo" data-tab="convites">📋<span>Escalas</span></button>
+    <button class="tab-item" data-tab="extrato">💰<span>Extrato</span></button>
+    <button class="tab-item" data-tab="perfil">👤<span>Perfil</span></button>
+  </nav>
+</div>
+
+<!-- PAINEL DE NOTIFICAÇÕES -->
+<div id="painel-notif" class="painel-lateral escondido">
+  <div class="painel-lateral-topo">
+    <strong>Notificações</strong>
+    <button id="fechar-notif">✕</button>
+  </div>
+  <div id="lista-notif" class="lista-notif"></div>
+</div>
+
+<!-- MODAL CHECK-IN / CHECK-OUT (câmera) -->
+<div id="modal-camera" class="modal-fundo escondido">
+  <div class="modal-caixa modal-camera-caixa">
+    <h3 id="camera-titulo">Check-in</h3>
+    <p class="texto-suave" id="camera-sub">Tire uma selfie para confirmar sua presença no local.</p>
+    <video id="video-camera" autoplay playsinline muted></video>
+    <canvas id="canvas-camera" class="escondido"></canvas>
+    <img id="foto-preview" class="escondido">
+    <div id="camera-status" class="camera-status"></div>
+    <div class="modal-acoes">
+      <button class="btn btn-fantasma" id="btn-cancelar-camera">Cancelar</button>
+      <button class="btn btn-ouro" id="btn-tirar-foto">Tirar foto</button>
+      <button class="btn btn-ouro escondido" id="btn-confirmar-foto">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL genérico -->
+<div id="modal-fundo" class="modal-fundo escondido">
+  <div class="modal-caixa" id="modal-caixa"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="areas.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
