@@ -10,3 +10,7 @@ capacitor-freelancer/android/build/
 capacitor-freelancer/android/.gradle/
 capacitor-freelancer/android/local.properties
 .DS_Store
+.ssh/
+.config/
+armazenar/
+.gitconfig
