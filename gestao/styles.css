@@ -175,6 +175,22 @@ input, select, textarea{font-family: inherit;}
 .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
 @media(max-width:520px){.grid-2{grid-template-columns:1fr;}}
 
+/* ---------- RESTAURANTES / CLIENTES (cards) ---------- */
+.grid-restaurantes{display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px;}
+.cliente-card{
+  background:var(--preto-carta); border:1px solid var(--preto-borda); border-radius:16px; padding:20px;
+  border-top:3px solid var(--ouro); display:flex; flex-direction:column; gap:8px;
+}
+.cliente-card-topo{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+.cliente-card h4{font-family:var(--fonte-display); font-size:20px; color:var(--texto);}
+.cliente-tipo{font-size:11px; color:var(--ouro-claro); text-transform:uppercase; letter-spacing:0.05em; font-weight:700;}
+.cliente-linha{font-size:13px; color:var(--texto-suave); display:flex; gap:6px;}
+.cliente-linha strong{color:var(--texto); font-weight:600;}
+.cliente-obs{background:#0e0e10; border:1px solid var(--preto-borda); border-radius:10px; padding:10px 12px; font-size:12.5px; color:var(--texto-suave); margin-top:6px; line-height:1.5;}
+.cliente-card-acoes{display:flex; gap:8px; margin-top:10px;}
+.cliente-card-acoes button{flex:1; font-size:13px; padding:9px;}
+.cliente-inativo{opacity:0.55;}
+
 /* ---------- LOADER LOGIN ---------- */
 .loader-ouro{width:34px; height:34px; border-radius:50%; border:3px solid var(--preto-borda); border-top-color:var(--ouro); animation:girar 0.9s linear infinite;}
 @keyframes girar{to{transform:rotate(360deg);}}

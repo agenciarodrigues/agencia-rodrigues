@@ -137,5 +137,8 @@ function tentarAdicionarColuna(tabela, definicao) {
 }
 tentarAdicionarColuna('freelancers', "areas TEXT DEFAULT '[]'");
 tentarAdicionarColuna('freelancers', 'favorito INTEGER DEFAULT 0');
+tentarAdicionarColuna('restaurantes', 'observacoes TEXT');
+tentarAdicionarColuna('restaurantes', 'tipo_local TEXT');
+tentarAdicionarColuna('freelancers', 'endereco TEXT');
 
 module.exports = db;

@@ -169,44 +169,60 @@ function formatarData(iso){
   return `${d}/${m}/${a}`;
 }
 
-// ---------------- RESTAURANTES ----------------
+// ---------------- RESTAURANTES / CLIENTES ----------------
 async function carregarRestaurantes(){
   const lista = await api('GET', '/restaurantes');
-  document.getElementById('tabela-restaurantes').innerHTML = lista.length ? lista.map(r => `
-    <tr>
-      <td><strong>${r.nome_empresa}</strong></td>
-      <td>${r.cnpj}</td>
-      <td>${r.responsavel}</td>
-      <td>${r.telefone || '—'}</td>
-      <td>${r.ativo ? '<span class="badge badge-aprovado">Ativo</span>' : '<span class="badge badge-bloqueado">Inativo</span>'}</td>
-      <td>
-        <button class="acao-link" onclick="editarRestaurante(${r.id})">Editar</button>
-        <button class="acao-link" style="color:#e0584f" onclick="excluirRestaurante(${r.id})">Excluir</button>
-      </td>
-    </tr>
-  `).join('') : '<tr><td colspan="6" class="texto-suave" style="padding:20px">Nenhum restaurante cadastrado. Clique em "Novo restaurante" para começar.</td></tr>';
+  document.getElementById('grid-restaurantes').innerHTML = lista.length ? lista.map(r => `
+    <div class="cliente-card ${r.ativo ? '' : 'cliente-inativo'}">
+      <div class="cliente-card-topo">
+        <div>
+          <h4>${r.nome_empresa}</h4>
+          ${r.tipo_local ? `<span class="cliente-tipo">${r.tipo_local}</span>` : ''}
+        </div>
+        ${!r.ativo ? '<span class="badge badge-bloqueado">Inativo</span>' : ''}
+      </div>
+      ${r.cnpj ? `<div class="cliente-linha">🧾 <strong>CNPJ:</strong> ${r.cnpj}</div>` : ''}
+      ${r.responsavel ? `<div class="cliente-linha">👤 <strong>Responsável:</strong> ${r.responsavel}</div>` : ''}
+      ${r.telefone ? `<div class="cliente-linha">📞 ${r.telefone}</div>` : ''}
+      ${r.endereco ? `<div class="cliente-linha">📍 ${r.endereco}</div>` : ''}
+      ${r.observacoes ? `<div class="cliente-obs">📝 ${r.observacoes}</div>` : ''}
+      <div class="cliente-card-acoes">
+        <button class="btn btn-fantasma" onclick="editarRestaurante(${r.id})">Editar</button>
+        <button class="btn btn-fantasma" style="color:#e0584f" onclick="excluirRestaurante(${r.id})">Excluir</button>
+      </div>
+    </div>
+  `).join('') : '<p class="texto-suave">Nenhum cliente cadastrado ainda. Clique em "Novo cliente" para começar — só o nome é obrigatório.</p>';
 }
 
 function formRestaurante(r = {}){
   return `
-    <h3>${r.id ? 'Editar restaurante' : 'Novo restaurante'}</h3>
+    <h3>${r.id ? 'Editar cliente' : 'Novo cliente'}</h3>
     <form id="form-restaurante" class="form-stack">
-      <label>Nome da empresa
+      <label>Nome da empresa / local *
         <input type="text" id="rest-nome" required value="${r.nome_empresa || ''}">
       </label>
+      <label>Tipo de local
+        <select id="rest-tipo">
+          <option value="">Selecione (opcional)</option>
+          ${['Restaurante','Hotel','Buffet','Casa de eventos','Clube','Corporativo','Casamento/Festa particular','Outro'].map(t => `<option ${r.tipo_local===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </label>
       <div class="grid-2">
-        <label>CNPJ
-          <input type="text" id="rest-cnpj" required value="${r.cnpj || ''}" placeholder="00.000.000/0000-00">
+        <label>CNPJ <span class="texto-suave" style="font-size:11px">(opcional)</span>
+          <input type="text" id="rest-cnpj" value="${r.cnpj || ''}" placeholder="00.000.000/0000-00">
         </label>
         <label>Telefone
           <input type="text" id="rest-telefone" value="${r.telefone || ''}" placeholder="(00) 00000-0000">
         </label>
       </div>
-      <label>Responsável / contratante
-        <input type="text" id="rest-responsavel" required value="${r.responsavel || ''}">
+      <label>Responsável / contratante <span class="texto-suave" style="font-size:11px">(opcional)</span>
+        <input type="text" id="rest-responsavel" value="${r.responsavel || ''}">
       </label>
       <label>Endereço
         <input type="text" id="rest-endereco" value="${r.endereco || ''}">
+      </label>
+      <label>Observações sobre este cliente
+        <textarea id="rest-observacoes" rows="3" placeholder="Ex: prefere garçons com experiência em casamento, sempre paga em dia, portaria pelos fundos...">${r.observacoes || ''}</textarea>
       </label>
       <div class="modal-acoes">
         <button type="button" class="btn btn-fantasma" onclick="fecharModal()">Cancelar</button>
@@ -231,10 +247,12 @@ function ligarFormRestaurante(id){
     e.preventDefault();
     const corpo = {
       nome_empresa: document.getElementById('rest-nome').value,
+      tipo_local: document.getElementById('rest-tipo').value,
       cnpj: document.getElementById('rest-cnpj').value,
       telefone: document.getElementById('rest-telefone').value,
       responsavel: document.getElementById('rest-responsavel').value,
       endereco: document.getElementById('rest-endereco').value,
+      observacoes: document.getElementById('rest-observacoes').value,
       ativo: 1
     };
     if (id) await api('PUT', `/restaurantes/${id}`, corpo);
@@ -244,7 +262,7 @@ function ligarFormRestaurante(id){
   });
 }
 window.excluirRestaurante = async (id) => {
-  if (!confirm('Excluir este restaurante? Os eventos vinculados a ele não serão apagados.')) return;
+  if (!confirm('Excluir este cliente? Os eventos vinculados a ele não serão apagados.')) return;
   await api('DELETE', `/restaurantes/${id}`);
   carregarRestaurantes();
 };
@@ -319,7 +337,7 @@ function renderTabelaFreelancers(lista, tituloGrupo){
                 <td><strong>${f.nome}</strong></td>
                 <td><div class="areas-tags-freela">${(f.areas||[]).map(a => `<span class="tag">${mapaAreas[a]||a}</span>`).join('')}</div></td>
                 <td>${f.cpf}</td>
-                <td>${f.telefone || '—'}</td>
+                <td>${f.telefone ? `<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde); text-decoration:none;">💬 ${f.telefone}</a>` : '—'}</td>
                 <td>${f.nota_media ? '⭐ ' + f.nota_media.toFixed(1) : '—'}</td>
                 <td><span class="badge ${badge[f.status]}">${f.status}</span></td>
                 <td>
@@ -363,6 +381,7 @@ async function carregarEscalas(){
         </div>
       </div>
       <div class="evento-acoes">
+        <button class="btn btn-ouro" onclick="notificarSobreEvento(${ev.id}, '${ev.titulo.replace(/'/g,"")}', '${ev.data}', '${ev.hora_inicio}', '${ev.nome_empresa.replace(/'/g,"")}')">🔔 Notificar agenciados</button>
         <button class="btn btn-fantasma" onclick="abrirConvidar(${ev.id})">Convidar freelancers</button>
         <button class="btn btn-fantasma" onclick="editarEvento(${ev.id})">Editar</button>
       </div>
@@ -489,6 +508,13 @@ function ligarFormEvento(id){
     carregarEscalas();
   });
 }
+
+window.notificarSobreEvento = (eventoId, titulo, data, horaInicio, nomeEmpresa) => {
+  abrirModalAviso({
+    titulo: `Nova escala: ${titulo}`,
+    texto: `${nomeEmpresa} · ${formatarData(data)} às ${horaInicio}. Abra o app e confira os detalhes na aba de escalas!`
+  });
+};
 
 window.abrirConvidar = async (eventoId) => {
   const freelancers = await api('GET', '/freelancers?status=aprovado');

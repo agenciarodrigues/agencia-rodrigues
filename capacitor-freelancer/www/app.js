@@ -117,7 +117,7 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
   try{
     const r = await api('POST', '/freelancer/login', {
-      email: document.getElementById('login-email').value,
+      identificador: document.getElementById('login-identificador').value,
       senha: document.getElementById('login-senha').value
     });
     TOKEN = r.token;
@@ -150,6 +150,7 @@ document.getElementById('form-cadastro').addEventListener('submit', async (e) =>
       cpf: document.getElementById('cad-cpf').value,
       email: document.getElementById('cad-email').value,
       telefone: document.getElementById('cad-telefone').value,
+      endereco: document.getElementById('cad-endereco').value,
       areas: areasSelecionadas,
       senha: document.getElementById('cad-senha').value
     });
@@ -419,7 +420,8 @@ async function mostrarPerfil(){
       <div class="linha-info"><span>Nome</span><strong>${PERFIL.nome}</strong></div>
       <div class="linha-info"><span>Áreas</span><strong style="text-align:right; max-width:60%">${(PERFIL.areas||[]).map(id => (window.AREAS_ATUACAO||[]).find(a=>a.id===id)?.label || id).join(', ') || PERFIL.funcao}</strong></div>
       <div class="linha-info"><span>Email</span><strong>${PERFIL.email}</strong></div>
-      <div class="linha-info"><span>Telefone</span><strong>${PERFIL.telefone || '—'}</strong></div>
+      <div class="linha-info"><span>WhatsApp</span><strong>${PERFIL.telefone || '—'}</strong></div>
+      <div class="linha-info"><span>Endereço</span><strong style="text-align:right; max-width:60%">${PERFIL.endereco || '—'}</strong></div>
       <div class="linha-info"><span>Status</span><strong style="text-transform:capitalize">${PERFIL.status}</strong></div>
     </div>
     <button class="btn btn-fantasma" style="width:100%; margin-top:8px" id="btn-sair-freela">Sair da conta</button>

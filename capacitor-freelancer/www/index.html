@@ -27,8 +27,8 @@
     <img src="assets/logo.png" class="auth-logo">
     <h2>Entrar</h2>
     <form id="form-login" class="form-stack">
-      <label>Email
-        <input type="email" id="login-email" required>
+      <label>WhatsApp ou email
+        <input type="text" id="login-identificador" required placeholder="(00) 00000-0000 ou seu@email.com">
       </label>
       <label>Senha
         <input type="password" id="login-senha" required>
@@ -55,8 +55,11 @@
       <label>Email
         <input type="email" id="cad-email" required>
       </label>
-      <label>Telefone (WhatsApp)
-        <input type="tel" id="cad-telefone" placeholder="(00) 00000-0000">
+      <label>📱 WhatsApp (você vai usar para entrar no app)
+        <input type="tel" id="cad-telefone" required placeholder="(00) 00000-0000">
+      </label>
+      <label>Endereço
+        <input type="text" id="cad-endereco" placeholder="Rua, número, bairro, cidade">
       </label>
       <label>Função (selecione todas as áreas em que você atua)
         <div id="cad-areas-lista" class="areas-checklist"></div>

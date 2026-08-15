@@ -100,35 +100,37 @@ app.post('/api/gestor/login', (req, res) => {
 // AUTENTICAÇÃO — FREELANCER
 // =====================================================================
 app.post('/api/freelancer/registrar', (req, res) => {
-  const { nome, cpf, email, telefone, senha, areas } = req.body;
-  if (!nome || !cpf || !email || !senha) return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios' });
+  const { nome, cpf, email, telefone, endereco, senha, areas } = req.body;
+  if (!nome || !cpf || !email || !telefone || !senha) return res.status(400).json({ erro: 'Preencha nome, CPF, email, WhatsApp e senha' });
   const listaAreas = Array.isArray(areas) ? areas.filter(Boolean) : [];
   if (listaAreas.length === 0) return res.status(400).json({ erro: 'Selecione ao menos uma área de atuação' });
-  const existe = db.prepare('SELECT id FROM freelancers WHERE cpf = ? OR email = ?').get(cpf, email);
-  if (existe) return res.status(400).json({ erro: 'Já existe um cadastro com este CPF ou email' });
+  const existe = db.prepare('SELECT id FROM freelancers WHERE cpf = ? OR email = ? OR telefone = ?').get(cpf, email, telefone);
+  if (existe) return res.status(400).json({ erro: 'Já existe um cadastro com este CPF, email ou WhatsApp' });
   const hash = bcrypt.hashSync(senha, 10);
   const info = db
     .prepare(
-      `INSERT INTO freelancers (nome, cpf, email, telefone, senha_hash, funcao, areas) VALUES (?,?,?,?,?,?,?)`
+      `INSERT INTO freelancers (nome, cpf, email, telefone, endereco, senha_hash, funcao, areas) VALUES (?,?,?,?,?,?,?,?)`
     )
-    .run(nome, cpf, email, telefone || '', hash, listaAreas[0], JSON.stringify(listaAreas));
+    .run(nome, cpf, email, telefone, endereco || '', hash, listaAreas[0], JSON.stringify(listaAreas));
   const token = assinarToken({ id: info.lastInsertRowid, papel: 'freelancer', nome });
   res.json({
     token,
-    freelancer: { id: info.lastInsertRowid, nome, email, status: 'pendente', areas: listaAreas }
+    freelancer: { id: info.lastInsertRowid, nome, email, telefone, status: 'pendente', areas: listaAreas }
   });
 });
 
 app.post('/api/freelancer/login', (req, res) => {
-  const { email, senha } = req.body;
-  const f = db.prepare('SELECT * FROM freelancers WHERE email = ?').get(email);
+  const { identificador, senha } = req.body;
+  if (!identificador || !senha) return res.status(400).json({ erro: 'Informe seu email ou WhatsApp e a senha' });
+  const chave = identificador.trim();
+  const f = db.prepare('SELECT * FROM freelancers WHERE email = ? OR telefone = ?').get(chave, chave);
   if (!f || !bcrypt.compareSync(senha, f.senha_hash)) {
-    return res.status(401).json({ erro: 'Email ou senha incorretos' });
+    return res.status(401).json({ erro: 'Dados incorretos. Confira o email/WhatsApp e a senha.' });
   }
   const token = assinarToken({ id: f.id, papel: 'freelancer', nome: f.nome });
   res.json({
     token,
-    freelancer: { id: f.id, nome: f.nome, email: f.email, status: f.status, funcao: f.funcao, areas: JSON.parse(f.areas || '[]'), nota_media: f.nota_media }
+    freelancer: { id: f.id, nome: f.nome, email: f.email, telefone: f.telefone, status: f.status, funcao: f.funcao, areas: JSON.parse(f.areas || '[]'), nota_media: f.nota_media }
   });
 });
 
@@ -153,7 +155,7 @@ app.post('/api/freelancer/push-token', autenticar('freelancer'), (req, res) => {
 });
 
 app.get('/api/freelancer/perfil', autenticar('freelancer'), (req, res) => {
-  const f = db.prepare('SELECT id,nome,cpf,email,telefone,funcao,areas,foto_perfil,status,nota_media,total_avaliacoes FROM freelancers WHERE id=?').get(req.usuario.id);
+  const f = db.prepare('SELECT id,nome,cpf,email,telefone,endereco,funcao,areas,foto_perfil,status,nota_media,total_avaliacoes FROM freelancers WHERE id=?').get(req.usuario.id);
   if (f) f.areas = JSON.parse(f.areas || '[]');
   res.json(f);
 });
@@ -166,21 +168,22 @@ app.get('/api/restaurantes', autenticar('gestor'), (req, res) => {
 });
 
 app.post('/api/restaurantes', autenticar('gestor'), (req, res) => {
-  const { cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude } = req.body;
-  if (!cnpj || !nome_empresa || !responsavel) return res.status(400).json({ erro: 'CNPJ, nome da empresa e responsável são obrigatórios' });
+  const { cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude, observacoes, tipo_local } = req.body;
+  if (!nome_empresa) return res.status(400).json({ erro: 'O nome da empresa é obrigatório' });
   const info = db
     .prepare(
-      `INSERT INTO restaurantes (cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude) VALUES (?,?,?,?,?,?,?)`
+      `INSERT INTO restaurantes (cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude, observacoes, tipo_local) VALUES (?,?,?,?,?,?,?,?,?)`
     )
-    .run(cnpj, nome_empresa, responsavel, telefone || '', endereco || '', latitude || null, longitude || null);
+    .run(cnpj || '', nome_empresa, responsavel || '', telefone || '', endereco || '', latitude || null, longitude || null, observacoes || '', tipo_local || '');
   res.json({ id: info.lastInsertRowid });
 });
 
 app.put('/api/restaurantes/:id', autenticar('gestor'), (req, res) => {
-  const { cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude, ativo } = req.body;
+  const { cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude, ativo, observacoes, tipo_local } = req.body;
+  if (!nome_empresa) return res.status(400).json({ erro: 'O nome da empresa é obrigatório' });
   db.prepare(
-    `UPDATE restaurantes SET cnpj=?, nome_empresa=?, responsavel=?, telefone=?, endereco=?, latitude=?, longitude=?, ativo=? WHERE id=?`
-  ).run(cnpj, nome_empresa, responsavel, telefone, endereco, latitude, longitude, ativo === undefined ? 1 : ativo, req.params.id);
+    `UPDATE restaurantes SET cnpj=?, nome_empresa=?, responsavel=?, telefone=?, endereco=?, latitude=?, longitude=?, ativo=?, observacoes=?, tipo_local=? WHERE id=?`
+  ).run(cnpj || '', nome_empresa, responsavel || '', telefone || '', endereco || '', latitude || null, longitude || null, ativo === undefined ? 1 : ativo, observacoes || '', tipo_local || '', req.params.id);
   res.json({ ok: true });
 });
 
