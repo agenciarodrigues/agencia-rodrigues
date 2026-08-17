@@ -61,6 +61,8 @@ input, select, textarea{font-family:inherit;}
 .auth-alt{margin-top:16px; font-size:13px; color:var(--texto-suave);}
 .auth-alt a{color:var(--ouro);}
 .msg-erro{margin-top:14px; background:rgba(224,88,79,0.12); border:1px solid rgba(224,88,79,0.4); color:#ff8f87; padding:10px; border-radius:8px; font-size:13px;}
+.msg-sucesso{margin-top:14px; background:rgba(76,175,109,0.12); border:1px solid rgba(76,175,109,0.4); color:#7fe0a0; padding:10px; border-radius:8px; font-size:13px;}
+.whatsapp-alt{margin-top:16px; padding-top:16px; border-top:1px solid var(--preto-borda);}
 
 /* APP */
 #app{display:flex; flex-direction:column; height:100vh;}
@@ -81,6 +83,7 @@ input, select, textarea{font-family:inherit;}
 .secao-titulo{font-family:var(--fonte-display); font-size:20px; margin: 22px 0 12px; color:var(--texto);}
 
 .aviso{background:rgba(224,177,63,0.12); border:1px solid rgba(224,177,63,0.35); color:var(--amarelo); padding:14px; border-radius:12px; font-size:13.5px; margin-bottom:16px;}
+.aviso-foto{background:rgba(212,175,55,0.12); border:1px solid var(--ouro-escuro); color:var(--ouro-claro);}
 
 /* CARTÃO DE CONVITE */
 .convite-card{background:var(--preto-carta); border:1px solid var(--preto-borda); border-radius:16px; padding:16px; margin-bottom:12px;}

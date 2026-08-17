@@ -140,5 +140,8 @@ tentarAdicionarColuna('freelancers', 'favorito INTEGER DEFAULT 0');
 tentarAdicionarColuna('restaurantes', 'observacoes TEXT');
 tentarAdicionarColuna('restaurantes', 'tipo_local TEXT');
 tentarAdicionarColuna('freelancers', 'endereco TEXT');
+tentarAdicionarColuna('freelancers', 'reset_codigo TEXT');
+tentarAdicionarColuna('freelancers', 'reset_expira TEXT');
+tentarAdicionarColuna('freelancers', 'zona TEXT');
 
 module.exports = db;

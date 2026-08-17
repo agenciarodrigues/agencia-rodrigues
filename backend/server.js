@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { enviarPush } = require('./push');
+const { enviarCodigoRecuperacao, transportadorConfigurado } = require('./email');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -100,7 +101,7 @@ app.post('/api/gestor/login', (req, res) => {
 // AUTENTICAÇÃO — FREELANCER
 // =====================================================================
 app.post('/api/freelancer/registrar', (req, res) => {
-  const { nome, cpf, email, telefone, endereco, senha, areas } = req.body;
+  const { nome, cpf, email, telefone, endereco, zona, senha, areas } = req.body;
   if (!nome || !cpf || !email || !telefone || !senha) return res.status(400).json({ erro: 'Preencha nome, CPF, email, WhatsApp e senha' });
   const listaAreas = Array.isArray(areas) ? areas.filter(Boolean) : [];
   if (listaAreas.length === 0) return res.status(400).json({ erro: 'Selecione ao menos uma área de atuação' });
@@ -109,9 +110,9 @@ app.post('/api/freelancer/registrar', (req, res) => {
   const hash = bcrypt.hashSync(senha, 10);
   const info = db
     .prepare(
-      `INSERT INTO freelancers (nome, cpf, email, telefone, endereco, senha_hash, funcao, areas) VALUES (?,?,?,?,?,?,?,?)`
+      `INSERT INTO freelancers (nome, cpf, email, telefone, endereco, zona, senha_hash, funcao, areas) VALUES (?,?,?,?,?,?,?,?,?)`
     )
-    .run(nome, cpf, email, telefone, endereco || '', hash, listaAreas[0], JSON.stringify(listaAreas));
+    .run(nome, cpf, email, telefone, endereco || '', zona || '', hash, listaAreas[0], JSON.stringify(listaAreas));
   const token = assinarToken({ id: info.lastInsertRowid, papel: 'freelancer', nome });
   res.json({
     token,
@@ -154,10 +155,76 @@ app.post('/api/freelancer/push-token', autenticar('freelancer'), (req, res) => {
   res.json({ ok: true });
 });
 
+// =====================================================================
+// RECUPERAÇÃO DE SENHA — freelancer
+// =====================================================================
+
+// Passo 1: pede um código de 6 dígitos. Tenta mandar por email (se
+// configurado). Sempre retorna também um link pronto de WhatsApp para o
+// suporte da agência, como alternativa — funciona mesmo sem email configurado.
+app.post('/api/freelancer/esqueci-senha', (req, res) => {
+  const { identificador } = req.body;
+  if (!identificador) return res.status(400).json({ erro: 'Informe seu email ou WhatsApp cadastrado' });
+  const chave = identificador.trim();
+  const f = db.prepare('SELECT * FROM freelancers WHERE email = ? OR telefone = ?').get(chave, chave);
+
+  // Resposta genérica por segurança (não revela se a conta existe ou não)
+  const respostaPadrao = {
+    ok: true,
+    mensagem: 'Se os dados estiverem corretos, o código foi enviado.',
+    whatsapp_suporte: process.env.WHATSAPP_SUPORTE || null
+  };
+  if (!f) return res.json(respostaPadrao);
+
+  const codigo = String(Math.floor(100000 + Math.random() * 900000));
+  const expira = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  db.prepare('UPDATE freelancers SET reset_codigo=?, reset_expira=? WHERE id=?').run(codigo, expira, f.id);
+
+  enviarCodigoRecuperacao(f.email, f.nome, codigo).then((r) => {
+    if (!r.enviado) console.log(`[recuperação] Email não enviado (${r.motivo}) — código gerado para ${f.email}: ${codigo}`);
+  });
+
+  res.json({ ...respostaPadrao, email_configurado: transportadorConfigurado() });
+});
+
+// Passo 2: confirma o código e define a nova senha
+app.post('/api/freelancer/redefinir-senha', (req, res) => {
+  const { identificador, codigo, nova_senha } = req.body;
+  if (!identificador || !codigo || !nova_senha) return res.status(400).json({ erro: 'Preencha o código e a nova senha' });
+  const chave = identificador.trim();
+  const f = db.prepare('SELECT * FROM freelancers WHERE email = ? OR telefone = ?').get(chave, chave);
+  if (!f || f.reset_codigo !== codigo) return res.status(400).json({ erro: 'Código inválido' });
+  if (!f.reset_expira || new Date(f.reset_expira) < new Date()) return res.status(400).json({ erro: 'Código expirado — solicite um novo' });
+
+  const hash = bcrypt.hashSync(nova_senha, 10);
+  db.prepare('UPDATE freelancers SET senha_hash=?, reset_codigo=NULL, reset_expira=NULL WHERE id=?').run(hash, f.id);
+  res.json({ ok: true });
+});
+
+// Caminho pelo gestor: define uma senha temporária na hora (usado quando o
+// freelancer chama no WhatsApp da agência pedindo ajuda para recuperar).
+app.put('/api/freelancers/:id/resetar-senha', autenticar('gestor'), (req, res) => {
+  const { nova_senha } = req.body;
+  if (!nova_senha || nova_senha.length < 6) return res.status(400).json({ erro: 'A nova senha precisa ter ao menos 6 caracteres' });
+  const hash = bcrypt.hashSync(nova_senha, 10);
+  db.prepare('UPDATE freelancers SET senha_hash=?, reset_codigo=NULL, reset_expira=NULL WHERE id=?').run(hash, req.params.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/freelancer/perfil', autenticar('freelancer'), (req, res) => {
-  const f = db.prepare('SELECT id,nome,cpf,email,telefone,endereco,funcao,areas,foto_perfil,status,nota_media,total_avaliacoes FROM freelancers WHERE id=?').get(req.usuario.id);
+  const f = db.prepare('SELECT id,nome,cpf,email,telefone,endereco,zona,funcao,areas,foto_perfil,status,nota_media,total_avaliacoes FROM freelancers WHERE id=?').get(req.usuario.id);
   if (f) f.areas = JSON.parse(f.areas || '[]');
   res.json(f);
+});
+
+// Foto de perfil (rosto) — obrigatória, mas pode ser enviada a qualquer
+// momento depois do cadastro. O app do freelancer fica avisando até ela
+// existir. Vem da galeria do celular (input de arquivo), não precisa ser
+// tirada na hora.
+app.post('/api/freelancer/foto-perfil', autenticar('freelancer'), upload.single('foto'), (req, res) => {
+  if (!req.file) return res.status(400).json({ erro: 'Envie uma foto' });
+  db.prepare('UPDATE freelancers SET foto_perfil=? WHERE id=?').run(`/uploads/${req.file.filename}`, req.usuario.id);
+  res.json({ ok: true, foto_perfil: `/uploads/${req.file.filename}` });
 });
 
 // =====================================================================
@@ -196,11 +263,12 @@ app.delete('/api/restaurantes/:id', autenticar('gestor'), (req, res) => {
 // FREELANCERS (visão do gestor)
 // =====================================================================
 app.get('/api/freelancers', autenticar('gestor'), (req, res) => {
-  const { status, area, favoritos } = req.query;
-  let sql = 'SELECT id,nome,cpf,email,telefone,funcao,areas,foto_perfil,status,favorito,nota_media,total_avaliacoes,ultima_lat,ultima_lng,ultima_localizacao_em,criado_em FROM freelancers';
+  const { status, area, favoritos, zona } = req.query;
+  let sql = 'SELECT id,nome,cpf,email,telefone,endereco,zona,funcao,areas,foto_perfil,status,favorito,nota_media,total_avaliacoes,ultima_lat,ultima_lng,ultima_localizacao_em,criado_em FROM freelancers';
   const cond = []; const params = [];
   if (status) { cond.push('status=?'); params.push(status); }
   if (favoritos === '1') { cond.push('favorito=1'); }
+  if (zona) { cond.push('zona=?'); params.push(zona); }
   if (cond.length) sql += ' WHERE ' + cond.join(' AND ');
   sql += ' ORDER BY favorito DESC, nome';
   let lista = db.prepare(sql).all(...params);

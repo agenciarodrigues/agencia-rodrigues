@@ -7,17 +7,47 @@ let PERFIL = JSON.parse(localStorage.getItem('ar_freela_perfil') || 'null');
 let ULTIMA_LOCALIZACAO = null;
 
 function apiUrl(p){ return API_BASE + p; }
-async function api(metodo, caminho, corpo, isFormData=false){
+
+// O servidor gratuito "dorme" depois de 15 min sem uso e pode levar até
+// ~60s para acordar. O Android às vezes desiste da conexão antes disso e
+// mostra "Failed to fetch" mesmo o servidor estando ok. Por isso: timeout
+// generoso (45s) + 2 tentativas automáticas antes de mostrar erro de verdade.
+async function api(metodo, caminho, corpo, isFormData=false, tentativa=1){
   const headers = {};
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
   if (!isFormData && corpo) headers['Content-Type'] = 'application/json';
-  const resp = await fetch(apiUrl(caminho), {
-    method: metodo, headers,
-    body: corpo ? (isFormData ? corpo : JSON.stringify(corpo)) : undefined
-  });
-  const dados = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(dados.erro || 'Erro na requisição');
-  return dados;
+
+  const controlador = new AbortController();
+  const timeoutId = setTimeout(() => controlador.abort(), 45000);
+
+  try{
+    const resp = await fetch(apiUrl(caminho), {
+      method: metodo, headers,
+      body: corpo ? (isFormData ? corpo : JSON.stringify(corpo)) : undefined,
+      signal: controlador.signal
+    });
+    clearTimeout(timeoutId);
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || 'Erro na requisição');
+    return dados;
+  }catch(err){
+    clearTimeout(timeoutId);
+    const eDeConexao = err.name === 'AbortError' || err.message === 'Failed to fetch' || err.message.includes('fetch');
+    if (eDeConexao && tentativa < 3){
+      await new Promise(r => setTimeout(r, 2000));
+      return api(metodo, caminho, corpo, isFormData, tentativa + 1);
+    }
+    if (eDeConexao){
+      throw new Error('Não foi possível conectar ao servidor. Confira sua internet e tente de novo em alguns segundos — o servidor pode estar iniciando.');
+    }
+    throw err;
+  }
+}
+
+// "Acorda" o servidor assim que o app abre, em segundo plano, para que na
+// hora de fazer login ele já esteja pronto (sem esperar a pessoa esperar).
+function acordarServidor(){
+  fetch(apiUrl('/health')).catch(() => {});
 }
 function urlFoto(caminho){
   if (!caminho) return '';
@@ -87,6 +117,7 @@ async function configurarPushNativo(){
 
 // ---------------- FLUXO INICIAL ----------------
 window.addEventListener('load', () => {
+  acordarServidor();
   popularChecklistAreas();
   pedirLocalizacaoContinua(); // pede permissão logo na primeira abertura
   setTimeout(iniciar, 900);
@@ -113,8 +144,109 @@ function trocarTela(de, para){
   document.getElementById(para).classList.remove('escondido');
 }
 
+// ---------------- DIAGNÓSTICO DE CONEXÃO ----------------
+document.getElementById('link-diagnostico').onclick = (e) => {
+  e.preventDefault();
+  trocarTela('tela-login', 'tela-diagnostico');
+  rodarDiagnostico();
+};
+document.getElementById('link-voltar-login-diagnostico').onclick = (e) => {
+  e.preventDefault();
+  trocarTela('tela-diagnostico', 'tela-login');
+};
+document.getElementById('btn-testar-de-novo').onclick = rodarDiagnostico;
+
+async function rodarDiagnostico(){
+  const el = document.getElementById('diagnostico-resultado');
+  el.textContent = 'Testando conexão...\n\nEndereço configurado:\n' + API_BASE;
+  const inicio = Date.now();
+  try{
+    const controlador = new AbortController();
+    const timeoutId = setTimeout(() => controlador.abort(), 60000);
+    const resp = await fetch(API_BASE.replace(/\/api$/, '') + '/api/health', { signal: controlador.signal });
+    clearTimeout(timeoutId);
+    const tempo = ((Date.now() - inicio) / 1000).toFixed(1);
+    const dados = await resp.json().catch(() => null);
+    if (resp.ok && dados && dados.ok){
+      el.textContent = `✅ CONECTOU COM SUCESSO!\n\nEndereço: ${API_BASE}\nTempo de resposta: ${tempo}s\nServidor: ${dados.servico}\n\nSe o login ainda assim não funcionar, o problema não é de conexão — pode ser email/WhatsApp ou senha incorretos, ou a conta ainda não foi criada de verdade.`;
+    } else {
+      el.textContent = `⚠️ O servidor respondeu, mas de forma inesperada.\n\nEndereço: ${API_BASE}\nStatus HTTP: ${resp.status}\nTempo: ${tempo}s\n\nEnvie este texto para o suporte.`;
+    }
+  }catch(err){
+    const tempo = ((Date.now() - inicio) / 1000).toFixed(1);
+    el.textContent = `❌ NÃO CONSEGUIU CONECTAR\n\nEndereço testado: ${API_BASE}\nTempo até desistir: ${tempo}s\nErro técnico: ${err.name} — ${err.message}\n\nEnvie este texto para o suporte. Isso ajuda a identificar exatamente onde está o problema.`;
+  }
+}
+
+// ---------------- ESQUECI MINHA SENHA ----------------
+document.getElementById('link-esqueci-senha').onclick = (e) => {
+  e.preventDefault();
+  document.getElementById('form-esqueci-passo1').classList.remove('escondido');
+  document.getElementById('form-esqueci-passo2').classList.add('escondido');
+  document.getElementById('esq-whatsapp-alt').classList.add('escondido');
+  document.getElementById('esqueci-erro').classList.add('escondido');
+  document.getElementById('esqueci-sucesso').classList.add('escondido');
+  document.getElementById('form-esqueci-passo1').reset();
+  trocarTela('tela-login', 'tela-esqueci');
+};
+document.getElementById('link-voltar-login-esqueci').onclick = (e) => {
+  e.preventDefault();
+  trocarTela('tela-esqueci', 'tela-login');
+};
+
+let identificadorRecuperacao = '';
+document.getElementById('form-esqueci-passo1').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  identificadorRecuperacao = document.getElementById('esq-identificador').value;
+  try{
+    const r = await api('POST', '/freelancer/esqueci-senha', { identificador: identificadorRecuperacao });
+    document.getElementById('esqueci-erro').classList.add('escondido');
+    document.getElementById('form-esqueci-passo1').classList.add('escondido');
+    document.getElementById('form-esqueci-passo2').classList.remove('escondido');
+    document.getElementById('esq-status-envio').textContent = r.email_configurado
+      ? '📧 Enviamos um código de 6 dígitos para o seu email. Confira também o spam.'
+      : '⚠️ O envio automático de email ainda não foi configurado — use a opção do WhatsApp abaixo para pedir ajuda ao suporte.';
+    // mostra a alternativa de WhatsApp sempre, como reforço
+    const numero = (window.CONFIG && window.CONFIG.WHATSAPP_SUPORTE) || '';
+    if (numero){
+      const msg = encodeURIComponent(`Olá! Esqueci minha senha do app. Meu WhatsApp/email cadastrado é: ${identificadorRecuperacao}`);
+      document.getElementById('esq-link-whatsapp').href = `https://wa.me/${numero}?text=${msg}`;
+      document.getElementById('esq-whatsapp-alt').classList.remove('escondido');
+    }
+  }catch(err){
+    const el = document.getElementById('esqueci-erro');
+    el.textContent = err.message; el.classList.remove('escondido');
+  }
+});
+
+document.getElementById('form-esqueci-passo2').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try{
+    await api('POST', '/freelancer/redefinir-senha', {
+      identificador: identificadorRecuperacao,
+      codigo: document.getElementById('esq-codigo').value,
+      nova_senha: document.getElementById('esq-nova-senha').value
+    });
+    document.getElementById('esqueci-erro').classList.add('escondido');
+    const ok = document.getElementById('esqueci-sucesso');
+    ok.textContent = 'Senha redefinida com sucesso! Você já pode entrar com a nova senha.';
+    ok.classList.remove('escondido');
+    document.getElementById('form-esqueci-passo2').classList.add('escondido');
+    document.getElementById('esq-whatsapp-alt').classList.add('escondido');
+    setTimeout(() => trocarTela('tela-esqueci', 'tela-login'), 2500);
+  }catch(err){
+    const el = document.getElementById('esqueci-erro');
+    el.textContent = err.message; el.classList.remove('escondido');
+  }
+});
+
 document.getElementById('form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const btn = e.target.querySelector('button[type=submit]');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+  document.getElementById('login-erro').classList.add('escondido');
   try{
     const r = await api('POST', '/freelancer/login', {
       identificador: document.getElementById('login-identificador').value,
@@ -133,6 +265,9 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
   }catch(err){
     const el = document.getElementById('login-erro');
     el.textContent = err.message; el.classList.remove('escondido');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 });
 
@@ -144,6 +279,11 @@ document.getElementById('form-cadastro').addEventListener('submit', async (e) =>
     el.textContent = 'Selecione ao menos uma área de atuação.'; el.classList.remove('escondido');
     return;
   }
+  const btn = e.target.querySelector('button[type=submit]');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+  document.getElementById('cadastro-erro').classList.add('escondido');
   try{
     const r = await api('POST', '/freelancer/registrar', {
       nome: document.getElementById('cad-nome').value,
@@ -151,6 +291,7 @@ document.getElementById('form-cadastro').addEventListener('submit', async (e) =>
       email: document.getElementById('cad-email').value,
       telefone: document.getElementById('cad-telefone').value,
       endereco: document.getElementById('cad-endereco').value,
+      zona: document.getElementById('cad-zona').value,
       areas: areasSelecionadas,
       senha: document.getElementById('cad-senha').value
     });
@@ -163,6 +304,9 @@ document.getElementById('form-cadastro').addEventListener('submit', async (e) =>
   }catch(err){
     const el = document.getElementById('cadastro-erro');
     el.textContent = err.message; el.classList.remove('escondido');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 });
 
@@ -194,12 +338,17 @@ async function mostrarApp(){
   const statusEl = document.getElementById('topo-status');
   statusEl.textContent = PERFIL.status;
   document.getElementById('aviso-pendente').classList.toggle('escondido', PERFIL.status !== 'pendente');
+  atualizarAvisoFoto();
   carregarConvites();
   carregarNotificacoes();
   configurarPushNativo();
   if (ULTIMA_LOCALIZACAO) enviarLocalizacao();
   setInterval(carregarNotificacoes, 25000);
   setInterval(carregarConvites, 30000);
+}
+
+function atualizarAvisoFoto(){
+  document.getElementById('aviso-foto').classList.toggle('escondido', !!PERFIL.foto_perfil);
 }
 
 // TABS
@@ -213,6 +362,63 @@ document.querySelectorAll('.tab-item').forEach(tab => {
     if (tab.dataset.tab === 'perfil'){ mostrarPerfil(); }
   };
 });
+
+// ---------------- FOTO DE PERFIL (obrigatória, da galeria) ----------------
+let arquivoFotoPerfil = null;
+
+function abrirModalFotoPerfil(){
+  document.getElementById('input-foto-perfil').value = '';
+  document.getElementById('preview-foto-perfil').classList.add('escondido');
+  document.getElementById('foto-perfil-status').textContent = '';
+  arquivoFotoPerfil = null;
+  document.getElementById('modal-foto-perfil').classList.remove('escondido');
+}
+document.getElementById('btn-add-foto').onclick = abrirModalFotoPerfil;
+document.getElementById('btn-cancelar-foto-perfil').onclick = () => {
+  document.getElementById('modal-foto-perfil').classList.add('escondido');
+};
+
+document.getElementById('input-foto-perfil').addEventListener('change', (e) => {
+  const arquivo = e.target.files[0];
+  const statusEl = document.getElementById('foto-perfil-status');
+  statusEl.textContent = '';
+  if (!arquivo) return;
+
+  const img = new Image();
+  const url = URL.createObjectURL(arquivo);
+  img.onload = () => {
+    // checagem básica de qualidade: recusa fotos muito pequenas/baixa resolução
+    if (img.width < 400 || img.height < 400){
+      statusEl.textContent = '⚠️ Essa foto está com resolução muito baixa. Escolha uma foto mais nítida, de melhor qualidade.';
+      document.getElementById('preview-foto-perfil').classList.add('escondido');
+      arquivoFotoPerfil = null;
+      return;
+    }
+    arquivoFotoPerfil = arquivo;
+    document.getElementById('preview-foto-perfil').src = url;
+    document.getElementById('preview-foto-perfil').classList.remove('escondido');
+  };
+  img.onerror = () => { statusEl.textContent = 'Não foi possível abrir essa imagem. Tente outra.'; };
+  img.src = url;
+});
+
+document.getElementById('btn-enviar-foto-perfil').onclick = async () => {
+  const statusEl = document.getElementById('foto-perfil-status');
+  if (!arquivoFotoPerfil){ statusEl.textContent = 'Escolha uma foto primeiro.'; return; }
+  statusEl.textContent = 'Enviando...';
+  try{
+    const formData = new FormData();
+    formData.append('foto', arquivoFotoPerfil);
+    const r = await api('POST', '/freelancer/foto-perfil', formData, true);
+    PERFIL.foto_perfil = r.foto_perfil;
+    localStorage.setItem('ar_freela_perfil', JSON.stringify(PERFIL));
+    document.getElementById('modal-foto-perfil').classList.add('escondido');
+    atualizarAvisoFoto();
+    if (document.querySelector('.tab-item.ativo').dataset.tab === 'perfil') mostrarPerfil();
+  }catch(err){
+    statusEl.textContent = '❌ ' + err.message;
+  }
+};
 
 // ---------------- CONVITES / ESCALAS ----------------
 async function carregarConvites(){
@@ -413,8 +619,12 @@ async function mostrarPerfil(){
   document.getElementById('bloco-ativo').innerHTML = '';
   document.getElementById('lista-convites').innerHTML = `
     <div class="perfil-bloco">
+      ${PERFIL.foto_perfil
+        ? `<img src="${urlFoto(PERFIL.foto_perfil)}" style="width:96px; height:96px; border-radius:50%; object-fit:cover; border:2px solid var(--ouro); margin-bottom:10px;">`
+        : `<div style="width:96px; height:96px; border-radius:50%; background:#0e0e10; border:2px dashed var(--preto-borda); display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:28px;">📷</div>`}
       <div class="nota">${PERFIL.nota_media ? '⭐ ' + PERFIL.nota_media.toFixed(1) : 'Sem avaliações ainda'}</div>
       <div class="texto-suave" style="font-size:12.5px; margin-top:4px">${PERFIL.total_avaliacoes || 0} avaliação(ões)</div>
+      <button class="btn btn-fantasma" id="btn-trocar-foto" style="width:100%; margin-top:14px;">${PERFIL.foto_perfil ? 'Trocar foto' : '📸 Adicionar foto de perfil'}</button>
     </div>
     <div class="convite-card">
       <div class="linha-info"><span>Nome</span><strong>${PERFIL.nome}</strong></div>
@@ -431,4 +641,5 @@ async function mostrarPerfil(){
     localStorage.removeItem('ar_freela_perfil');
     location.reload();
   };
+  document.getElementById('btn-trocar-foto').onclick = abrirModalFotoPerfil;
 }

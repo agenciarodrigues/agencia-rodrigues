@@ -36,7 +36,55 @@
       <button class="btn btn-ouro" type="submit">Entrar</button>
     </form>
     <p class="auth-alt">Primeira vez por aqui? <a href="#" id="link-cadastro">Criar minha conta</a></p>
+    <p class="auth-alt"><a href="#" id="link-esqueci-senha">Esqueci minha senha</a></p>
+    <p class="auth-alt" style="font-size:11px; opacity:0.6"><a href="#" id="link-diagnostico">Testar conexão com o servidor</a></p>
     <div id="login-erro" class="msg-erro escondido"></div>
+  </div>
+</div>
+
+<!-- DIAGNÓSTICO DE CONEXÃO -->
+<div id="tela-diagnostico" class="tela-cheia col centro escondido">
+  <div class="cartao-auth">
+    <img src="assets/logo.png" class="auth-logo">
+    <h2>Diagnóstico</h2>
+    <div id="diagnostico-resultado" class="form-stack" style="text-align:left; font-size:13px; color:var(--texto-suave); background:#0e0e10; padding:14px; border-radius:10px; white-space:pre-wrap; word-break:break-all;">Testando...</div>
+    <button class="btn btn-fantasma" id="btn-testar-de-novo" style="margin-top:14px;">Testar de novo</button>
+    <p class="auth-alt"><a href="#" id="link-voltar-login-diagnostico">Voltar para login</a></p>
+  </div>
+</div>
+
+<!-- ESQUECI MINHA SENHA -->
+<div id="tela-esqueci" class="tela-cheia col centro escondido">
+  <div class="cartao-auth">
+    <img src="assets/logo.png" class="auth-logo">
+    <h2>Recuperar senha</h2>
+
+    <form id="form-esqueci-passo1" class="form-stack">
+      <label>Seu WhatsApp ou email cadastrado
+        <input type="text" id="esq-identificador" required>
+      </label>
+      <button class="btn btn-ouro" type="submit">Enviar código por email</button>
+    </form>
+
+    <form id="form-esqueci-passo2" class="form-stack escondido">
+      <p class="texto-suave" id="esq-status-envio" style="text-align:left; margin-bottom:4px;"></p>
+      <label>Código recebido (6 dígitos)
+        <input type="text" id="esq-codigo" required maxlength="6" inputmode="numeric">
+      </label>
+      <label>Nova senha
+        <input type="password" id="esq-nova-senha" required minlength="6">
+      </label>
+      <button class="btn btn-ouro" type="submit">Redefinir senha</button>
+    </form>
+
+    <div id="esq-whatsapp-alt" class="whatsapp-alt escondido">
+      <p class="texto-suave">Prefere resolver mais rápido? Chame o suporte da agência no WhatsApp:</p>
+      <a id="esq-link-whatsapp" href="#" target="_blank" class="btn btn-fantasma" style="display:block; text-decoration:none; text-align:center;">💬 Falar com o suporte</a>
+    </div>
+
+    <p class="auth-alt"><a href="#" id="link-voltar-login-esqueci">Voltar para login</a></p>
+    <div id="esqueci-erro" class="msg-erro escondido"></div>
+    <div id="esqueci-sucesso" class="msg-sucesso escondido"></div>
   </div>
 </div>
 
@@ -60,6 +108,18 @@
       </label>
       <label>Endereço
         <input type="text" id="cad-endereco" placeholder="Rua, número, bairro, cidade">
+      </label>
+      <label>Região onde mora
+        <select id="cad-zona">
+          <option value="">Selecione sua região</option>
+          <option>Zona Norte</option>
+          <option>Zona Sul</option>
+          <option>Zona Leste</option>
+          <option>Zona Oeste</option>
+          <option>Centro</option>
+          <option>Grande SP</option>
+          <option>Fora de São Paulo</option>
+        </select>
       </label>
       <label>Função (selecione todas as áreas em que você atua)
         <div id="cad-areas-lista" class="areas-checklist"></div>
@@ -115,6 +175,12 @@
       ⏳ Seu cadastro está em análise pela Agência Rodrigues. Assim que for aprovado, você poderá receber convites de escala.
     </div>
 
+    <!-- AVISO DE FOTO DE PERFIL OBRIGATÓRIA -->
+    <div id="aviso-foto" class="aviso aviso-foto escondido">
+      📸 <strong>Falta sua foto de perfil!</strong> É obrigatória — precisa ser uma foto do seu rosto, nítida e recente.
+      <button class="btn btn-ouro" id="btn-add-foto" style="width:100%; margin-top:10px;">Adicionar foto agora</button>
+    </div>
+
     <!-- ESCALA ATIVA (check-in/out) -->
     <div id="bloco-ativo"></div>
 
@@ -152,6 +218,21 @@
       <button class="btn btn-fantasma" id="btn-cancelar-camera">Cancelar</button>
       <button class="btn btn-ouro" id="btn-tirar-foto">Tirar foto</button>
       <button class="btn btn-ouro escondido" id="btn-confirmar-foto">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOTO DE PERFIL (da galeria) -->
+<div id="modal-foto-perfil" class="modal-fundo escondido">
+  <div class="modal-caixa modal-camera-caixa">
+    <h3>Foto de perfil</h3>
+    <p class="texto-suave">Escolha uma foto do seu rosto, bem nítida, tirada em um lugar bem iluminado. É assim que a agência e os contratantes vão te reconhecer.</p>
+    <input type="file" id="input-foto-perfil" accept="image/*" style="margin:16px 0; color:var(--texto);">
+    <img id="preview-foto-perfil" class="escondido" style="width:100%; border-radius:14px; max-height:50vh; object-fit:cover;">
+    <div id="foto-perfil-status" class="camera-status"></div>
+    <div class="modal-acoes">
+      <button class="btn btn-fantasma" id="btn-cancelar-foto-perfil">Cancelar</button>
+      <button class="btn btn-ouro" id="btn-enviar-foto-perfil">Enviar foto</button>
     </div>
   </div>
 </div>

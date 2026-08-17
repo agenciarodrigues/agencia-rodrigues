@@ -1,5 +1,6 @@
-// Endereço do servidor (backend). Troque para o endereço do seu servidor
-// quando publicar (ex: https://api.agenciarodrigues.com/api).
+// Endereço do servidor (backend) e WhatsApp de suporte da agência (usado na
+// tela "esqueci minha senha" como alternativa ao email).
 window.CONFIG = {
-  API_BASE: 'http://localhost:3000/api'
+  API_BASE: 'https://agencia-rodrigues.onrender.com/api',
+  WHATSAPP_SUPORTE: '5511940440572'
 };

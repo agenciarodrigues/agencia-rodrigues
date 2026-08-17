@@ -8,19 +8,43 @@ let GESTOR = JSON.parse(localStorage.getItem('ar_gestor_dados') || 'null');
 
 function apiUrl(p){ return API_BASE + p; }
 
-async function api(metodo, caminho, corpo, isFormData=false){
+// Mesma blindagem do app do freelancer: o servidor gratuito pode "dormir"
+// e demorar a acordar — timeout generoso + retry automático antes de
+// mostrar erro de verdade pro gestor.
+async function api(metodo, caminho, corpo, isFormData=false, tentativa=1){
   const headers = {};
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
   if (!isFormData) headers['Content-Type'] = 'application/json';
-  const resp = await fetch(apiUrl(caminho), {
-    method: metodo,
-    headers,
-    body: corpo ? (isFormData ? corpo : JSON.stringify(corpo)) : undefined
-  });
-  const dados = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(dados.erro || 'Erro na requisição');
-  return dados;
+
+  const controlador = new AbortController();
+  const timeoutId = setTimeout(() => controlador.abort(), 45000);
+
+  try{
+    const resp = await fetch(apiUrl(caminho), {
+      method: metodo,
+      headers,
+      body: corpo ? (isFormData ? corpo : JSON.stringify(corpo)) : undefined,
+      signal: controlador.signal
+    });
+    clearTimeout(timeoutId);
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || 'Erro na requisição');
+    return dados;
+  }catch(err){
+    clearTimeout(timeoutId);
+    const eDeConexao = err.name === 'AbortError' || err.message === 'Failed to fetch' || err.message.includes('fetch');
+    if (eDeConexao && tentativa < 3){
+      await new Promise(r => setTimeout(r, 2000));
+      return api(metodo, caminho, corpo, isFormData, tentativa + 1);
+    }
+    if (eDeConexao){
+      throw new Error('Não foi possível conectar ao servidor. Tente novamente em alguns segundos.');
+    }
+    throw err;
+  }
 }
+function acordarServidor(){ fetch(apiUrl('/health')).catch(() => {}); }
+acordarServidor();
 
 function urlFoto(caminho){
   if (!caminho) return '';
@@ -271,6 +295,7 @@ window.excluirRestaurante = async (id) => {
 let filtroFreelancerAtual = '';
 let filtroFavoritosAtivo = false;
 let filtroAreaAtual = '';
+let filtroZonaAtual = '';
 const mapaAreas = Object.fromEntries((window.AREAS_ATUACAO || []).map(a => [a.id, a.label]));
 
 document.querySelectorAll('#filtro-freelancers .chip[data-status]').forEach(chip => {
@@ -294,6 +319,9 @@ function popularSelectArea(){
   select.innerHTML = '<option value="">Organizar por área — todas</option>' +
     (window.AREAS_ATUACAO || []).map(a => `<option value="${a.id}">${a.label}</option>`).join('');
   select.onchange = () => { filtroAreaAtual = select.value; carregarFreelancers(); };
+
+  const selectZona = document.getElementById('select-zona-freelancer');
+  selectZona.onchange = () => { filtroZonaAtual = selectZona.value; carregarFreelancers(); };
 }
 
 async function carregarFreelancers(){
@@ -302,9 +330,10 @@ async function carregarFreelancers(){
   if (filtroFreelancerAtual) query.push(`status=${filtroFreelancerAtual}`);
   if (filtroFavoritosAtivo) query.push('favoritos=1');
   if (filtroAreaAtual) query.push(`area=${filtroAreaAtual}`);
+  if (filtroZonaAtual) query.push(`zona=${encodeURIComponent(filtroZonaAtual)}`);
   const lista = await api('GET', '/freelancers' + (query.length ? '?' + query.join('&') : ''));
 
-  if (filtroAreaAtual || filtroFavoritosAtivo || filtroFreelancerAtual){
+  if (filtroAreaAtual || filtroFavoritosAtivo || filtroFreelancerAtual || filtroZonaAtual){
     // filtro ativo: mostra tudo numa lista só, sem agrupar
     document.getElementById('grupos-freelancers').innerHTML = renderTabelaFreelancers(lista, 'Resultado');
   } else {
@@ -329,13 +358,14 @@ function renderTabelaFreelancers(lista, tituloGrupo){
       <h4>${tituloGrupo} <span class="contagem">(${lista.length})</span></h4>
       <div class="tabela-wrap">
         <table class="tabela">
-          <thead><tr><th></th><th>Nome</th><th>Áreas</th><th>CPF</th><th>Telefone</th><th>Nota</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th></th><th></th><th>Nome</th><th>Áreas</th><th>CPF</th><th>Telefone</th><th>Nota</th><th>Status</th><th></th></tr></thead>
           <tbody>
             ${lista.length ? lista.map(f => `
               <tr>
                 <td><button class="estrela-fav ${f.favorito ? 'ativa' : ''}" data-id="${f.id}" data-fav="${f.favorito ? 0 : 1}">★</button></td>
+                <td>${f.foto_perfil ? `<img src="${urlFoto(f.foto_perfil)}" class="foto-mini" style="border-radius:50%;">` : `<span style="opacity:0.4" title="Sem foto de perfil ainda">📷</span>`}</td>
                 <td><strong>${f.nome}</strong></td>
-                <td><div class="areas-tags-freela">${(f.areas||[]).map(a => `<span class="tag">${mapaAreas[a]||a}</span>`).join('')}</div></td>
+                <td><div class="areas-tags-freela">${(f.areas||[]).map(a => `<span class="tag">${mapaAreas[a]||a}</span>`).join('')}${f.zona ? `<span class="tag" style="border-color:var(--ouro-escuro); color:var(--ouro-claro)">📍 ${f.zona}</span>` : ''}</div></td>
                 <td>${f.cpf}</td>
                 <td>${f.telefone ? `<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde); text-decoration:none;">💬 ${f.telefone}</a>` : '—'}</td>
                 <td>${f.nota_media ? '⭐ ' + f.nota_media.toFixed(1) : '—'}</td>
@@ -345,7 +375,7 @@ function renderTabelaFreelancers(lista, tituloGrupo){
                   ${f.status !== 'bloqueado' ? `<button class="acao-link" style="color:#e0584f" onclick="mudarStatusFreelancer(${f.id},'bloqueado')">Bloquear</button>` : `<button class="acao-link" onclick="mudarStatusFreelancer(${f.id},'aprovado')">Desbloquear</button>`}
                 </td>
               </tr>
-            `).join('') : `<tr><td colspan="8" class="texto-suave" style="padding:16px">Nenhum freelancer aqui.</td></tr>`}
+            `).join('') : `<tr><td colspan="9" class="texto-suave" style="padding:16px">Nenhum freelancer aqui.</td></tr>`}
           </tbody>
         </table>
       </div>
